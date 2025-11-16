@@ -1,0 +1,39 @@
+name: Build and Deploy sub-app to GitHub Pages
+
+on:
+  push:
+    branches: [ main ]    # branch que dispara o deploy
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Use Node.js 18
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+
+      # Faz a instalação e build dentro da pasta do app no monorepo
+      - name: Install dependencies (sub-app)
+        working-directory: ./apps/<seu-app>
+        run: npm ci
+
+      - name: Build (sub-app)
+        working-directory: ./apps/<seu-app>
+        run: npm run build
+
+      - name: Configure Pages
+        uses: actions/configure-pages@v3
+
+      - name: Upload artifact for GitHub Pages
+        uses: actions/upload-pages-artifact@v1
+        with:
+          path: ./apps/<seu-app>/dist   # <-- troque "dist" por "build" se necessário
