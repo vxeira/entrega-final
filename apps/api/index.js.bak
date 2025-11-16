@@ -1,0 +1,42 @@
+﻿import express from "express"
+import cors from "cors"
+import fetch from "node-fetch"
+
+const app = express()
+app.use(cors())
+app.use(express.json())
+
+app.post("/api/translate", async (req, res) => {
+  try {
+    const upstream = await fetch("https://libretranslate.de/translate", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(req.body),
+      // timeout não nativo em node-fetch v3; podemos confiar no cliente/infra
+    })
+
+    const text = await upstream.text()
+
+    // tenta parsear JSON; se falhar, devolve o body como texto dentro de JSON para diagnóstico
+    try {
+      const data = JSON.parse(text)
+      return res.status(upstream.status).json(data)
+    } catch (parseErr) {
+      // responde com detalhes para ajudar no debug (não exponha isso em produção)
+      return res.status(upstream.status).json({
+        ok: false,
+        upstreamStatus: upstream.status,
+        note: "Upstream returned non-JSON body (debug). See 'body' for content.",
+        body: text
+      })
+    }
+  } catch (err) {
+    console.error("Proxy error:", err)
+    return res.status(500).json({ error: "Proxy failed", details: err.message })
+  }
+})
+
+app.get("/api/health", (req, res) => res.json({ ok: true, time: new Date().toISOString() }))
+
+const port = process.env.PORT || 3000
+app.listen(port, () => console.log(`API rodando em http://localhost:${port}`))
